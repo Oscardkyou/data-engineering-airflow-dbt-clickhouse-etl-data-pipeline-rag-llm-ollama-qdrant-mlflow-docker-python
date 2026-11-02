@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: int_vacancies_unified
+    description: All sources, latest version per vacancy, with first/last day it was seen.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [source, source_id]
+
+  - name: int_currency_rates_daily
+    description: One USD/KZT rate per currency per day, ECB preferred over hh.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [dt, currency]
+
+  - name: int_vacancy_salaries
+    description: Monthly salary midpoint in USD and KZT for vacancies that state a salary.

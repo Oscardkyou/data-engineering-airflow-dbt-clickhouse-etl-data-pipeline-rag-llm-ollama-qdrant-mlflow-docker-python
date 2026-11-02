@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Loaded by the Airflow `load` DAG after the quality gate.
+    tables:
+      - name: vacancies
+        description: One row per vacancy per day it was seen (partitioned by source, dt).
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 36, period: hour}
+          error_after: {count: 72, period: hour}
+      - name: currency_rates
+        description: Daily rates from Frankfurter (USD base) and hh.ru (RUB base).
+      - name: load_audit
+        description: Quality gate outcome for every load attempt.

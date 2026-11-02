@@ -1,0 +1,94 @@
+version: 2
+
+models:
+  - name: fct_vacancy
+    description: >
+      Star schema fact. Grain: one vacancy (latest version). Salaries are monthly midpoints
+      converted to USD and KZT on the day the vacancy was observed.
+    columns:
+      - name: vacancy_key
+        data_tests: [unique, not_null]
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_company')
+                field: company_key
+      - name: location_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: location_key
+      - name: published_date
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: seniority_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [entry, junior, middle, senior, lead, unknown]
+      - name: url
+        data_tests: [not_null]
+
+  - name: dim_company
+    columns:
+      - name: company_key
+        data_tests: [unique, not_null]
+
+  - name: dim_location
+    columns:
+      - name: location_key
+        data_tests: [unique, not_null]
+
+  - name: dim_skill
+    columns:
+      - name: skill_key
+        data_tests: [unique, not_null]
+      - name: skill_name
+        data_tests: [unique]
+
+  - name: dim_date
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: dim_currency_rate
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [dt, currency]
+
+  - name: bridge_vacancy_skill
+    description: Vacancy-skill many-to-many bridge.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [vacancy_key, skill_key]
+    columns:
+      - name: vacancy_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_vacancy')
+                field: vacancy_key
+      - name: skill_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_skill')
+                field: skill_key
+
+  - name: mart_skill_demand
+    description: Skill demand and median monthly USD salary by seniority (median hidden below 5 salaries).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [seniority_level, skill_name]
+
+  - name: mart_daily_vacancies
+    description: New vacancies per day and source, zero-filled.

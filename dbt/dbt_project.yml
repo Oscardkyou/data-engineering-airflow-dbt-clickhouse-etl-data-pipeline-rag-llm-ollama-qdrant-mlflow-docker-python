@@ -1,0 +1,19 @@
+name: jmi
+version: "1.0.0"
+config-version: 2
+profile: jmi
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+models:
+  jmi:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: table
+      +engine: MergeTree()
+    marts:
+      +materialized: table
+      +engine: MergeTree()

@@ -66,10 +66,39 @@ All ports are bound to 127.0.0.1 only.
   Cross-day versions of the same job are resolved in dbt.
 - **Skills from a curated dictionary** (`jmi.skills`): deterministic and unit-tested; merged with hh `key_skills`.
 
+- **dbt in its own virtualenv** inside the Airflow image: dbt pins libraries that conflict with Airflow's.
+  `dbt build` runs models and tests in DAG order, so a failing test stops everything downstream of it.
+- **Two currency providers**: Frankfurter (ECB, historical, no KZT) + hh.ru dictionaries (has KZT, today only).
+  Cross rates go through USD; `ASOF JOIN` picks the latest rate on or before the day a vacancy was seen.
+- **ClickHouse gotcha caught by tests**: a SELECT alias is visible in the whole query, so
+  `ifNull(country, 'Worldwide') AS country` silently changed a hash key; the `relationships` test failed on all rows.
+  Dimension models qualify source columns with a table alias.
+
 ## Pipeline so far
 
 ```
 ingest (daily) ──▶ s3://raw/{source}/dt=…/*.json ──asset──▶ load ──▶ quality gate
-                                                              ├──▶ s3://processed/{source}/dt=…/vacancies.parquet
-                                                              └──▶ ClickHouse raw.vacancies + raw.load_audit
+   └─ currency rates ──▶ raw.currency_rates                     ├──▶ s3://processed/{source}/dt=…/vacancies.parquet
+                                                                └──▶ ClickHouse raw.vacancies + raw.load_audit
+                                                                                │ asset
+                                                                                ▼
+                                          dbt_transform: source freshness ──▶ dbt build
 ```
+
+## Data model (dbt, ClickHouse `analytics`)
+
+```
+staging        stg_hh__vacancies, stg_himalayas__vacancies, stg_currency_rates      (views)
+intermediate   int_vacancies_unified (latest version + first/last seen), int_currency_rates_daily,
+               int_vacancy_salaries (monthly USD/KZT via ASOF JOIN)
+marts          fct_vacancy ── dim_company, dim_location, dim_date
+                    └── bridge_vacancy_skill ── dim_skill            dim_currency_rate
+               mart_skill_demand (share + median salary by seniority), mart_daily_vacancies
+```
+
+Tests: keys unique/not null, fact→dimension relationships, accepted seniority values, composite
+uniqueness, plausible monthly salary range, and a warning when a salary currency has no rate.
+
+**SCD Type 2** is not used: vacancies are short-lived and we keep the latest version. It would matter
+for attributes whose history affects analysis, e.g. a company changing industry or headquarters,
+or a vacancy whose salary range is edited while open (to analyse "salary at publication time").

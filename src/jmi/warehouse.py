@@ -58,6 +58,20 @@ DDL = [
     ENGINE = MergeTree
     ORDER BY (source, dt, loaded_at)
     """,
+    """
+    CREATE TABLE IF NOT EXISTS raw.currency_rates
+    (
+        dt             Date,
+        provider       LowCardinality(String),
+        base           LowCardinality(String),
+        currency       LowCardinality(String),
+        units_per_base Float64,
+        rate_date      Date
+    )
+    ENGINE = MergeTree
+    PARTITION BY toYYYYMM(dt)
+    ORDER BY (dt, provider, currency)
+    """,
 ]
 
 
@@ -87,6 +101,14 @@ def replace_partition(ch, source: str, dt: date, table: pa.Table) -> None:
     )
     if table.num_rows:
         ch.insert_arrow("raw.vacancies", table)
+
+
+def replace_currency_rates(ch, dt: date, rows: list[list]) -> None:
+    """Idempotent per day: delete that day's rows, insert the fresh ones (tiny table, lightweight delete)."""
+    ch.command("DELETE FROM raw.currency_rates WHERE dt = {dt:Date}", parameters={"dt": dt})
+    if rows:
+        ch.insert("raw.currency_rates", rows,
+                  column_names=["dt", "provider", "base", "currency", "units_per_base", "rate_date"])
 
 
 def write_audit(ch, source: str, dt: date, status: str, report: dict) -> None:

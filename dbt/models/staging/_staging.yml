@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_hh__vacancies
+    description: hh.ru vacancies with seniority mapped to the shared scale.
+    columns: &vacancy_columns
+      - name: source_id
+        data_tests: [not_null]
+      - name: seniority_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [entry, junior, middle, senior, lead, unknown]
+
+  - name: stg_himalayas__vacancies
+    description: Himalayas vacancies with seniority mapped to the shared scale.
+    columns: *vacancy_columns
+
+  - name: stg_currency_rates
+    description: Both providers as USD per 1 unit of currency, one row per dt/provider/currency.
+    columns:
+      - name: usd_per_unit
+        data_tests: [not_null]
