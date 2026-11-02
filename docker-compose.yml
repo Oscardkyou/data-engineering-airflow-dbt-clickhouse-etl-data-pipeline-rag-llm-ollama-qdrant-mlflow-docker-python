@@ -1,0 +1,191 @@
+name: jmi
+
+# Shared Airflow settings. Airflow 3 splits the old webserver into api-server,
+# scheduler and dag-processor; tasks talk to the api-server via the Execution API.
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: infra/airflow/Dockerfile
+  image: jmi-airflow:local
+  env_file: .env
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # Local learning setup: every UI user is admin, no login screen.
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"
+    # Keep the footprint small: 16 GB RAM host shared with Windows and Ollama.
+    AIRFLOW__CORE__PARALLELISM: "4"
+    AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "2"
+    AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "30"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    PYTHONPATH: /opt/airflow/src
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./src:/opt/airflow/src
+    - airflow-logs:/opt/airflow/logs
+  depends_on: &airflow-depends
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16.8-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      retries: 5
+    mem_limit: 512m
+    restart: unless-stopped
+
+  # S3-compatible data lake. MinIO stopped publishing Docker images in 2025,
+  # so SeaweedFS is used instead; code only sees the S3 API via boto3.
+  s3:
+    image: chrislusf/seaweedfs:3.85
+    entrypoint: ["/bin/sh", "/s3-entrypoint.sh"]
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    volumes:
+      - s3-data:/data
+      - ./infra/seaweedfs/entrypoint.sh:/s3-entrypoint.sh:ro
+    ports:
+      - "127.0.0.1:9010:8333"   # S3 API (9000 is taken by ClickHouse native)
+      - "127.0.0.1:9011:8888"   # filer web UI to browse buckets
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8333"]
+      interval: 10s
+      retries: 10
+    mem_limit: 512m
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./infra/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./infra/clickhouse/low-memory.xml:/etc/clickhouse-server/config.d/low-memory.xml:ro
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping | grep -q Ok"]
+      interval: 10s
+      retries: 10
+    mem_limit: 2g
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports: ["127.0.0.1:6333:6333"]
+    healthcheck:
+      # The image has no curl/wget, so probe the port with bash.
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      retries: 5
+    mem_limit: 512m
+    restart: unless-stopped
+
+  mlflow:
+    build: infra/mlflow
+    image: jmi-mlflow:local
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow
+      --artifacts-destination s3://mlflow
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://s3:8333
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+    ports: ["127.0.0.1:5000:5000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      s3: { condition: service_healthy }
+      airflow-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5000/health"]
+      interval: 15s
+      retries: 10
+    mem_limit: 512m
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    command: ["bash", "-c", "airflow db migrate && python -m jmi.bootstrap"]
+    depends_on:
+      <<: *airflow-depends
+      s3: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+    restart: "no"
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      <<: *airflow-depends
+      airflow-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/v2/version"]
+      interval: 15s
+      retries: 10
+      start_period: 30s
+    mem_limit: 1g
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      <<: *airflow-depends
+      airflow-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8974/health"]
+      interval: 15s
+      retries: 10
+      start_period: 30s
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    depends_on:
+      <<: *airflow-depends
+      airflow-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type DagProcessorJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+    mem_limit: 768m
+    restart: unless-stopped
+
+# Named volumes, not bind mounts: the project folder is synced by OneDrive,
+# and database files must never end up there.
+volumes:
+  postgres-data:
+  s3-data:
+  clickhouse-data:
+  qdrant-data:
+  airflow-logs:

@@ -1,0 +1,5 @@
+# Force LF everywhere: shell scripts and configs run inside Linux containers.
+* text=auto eol=lf
+*.exe binary
+*.png binary
+*.parquet binary
