@@ -56,3 +56,20 @@ All ports are bound to 127.0.0.1 only.
   to the S3 API through boto3, so the storage backend is swappable.
 - **Named volumes for all data**: the repo may live in a synced folder (OneDrive); database files must not.
 - **Memory limits on every container**: the stack fits in ~8 GB so it runs on a 16 GB laptop next to Ollama.
+- **Assets instead of sensors**: `ingest` emits an asset event per source with `{source, dt}` in its extra;
+  `load` is scheduled on those assets and maps one task per changed partition. No worker slot waits in a sensor.
+- **Quality gate before the warehouse** (`jmi.quality`): Pydantic validation, dedupe, >10% invalid rows or
+  <50% of the 7-day median volume fails the load. Every outcome is recorded in `raw.load_audit`.
+  On real data it caught an ID collision: Himalayas job slugs repeat across companies, so the ID is `company/slug`.
+- **Plain MergeTree partitioned by `(source, dt)`, not ReplacingMergeTree**: a reload is `DROP PARTITION` + `INSERT`,
+  which is exact and immediate. ReplacingMergeTree only dedupes on background merges (or with `FINAL`).
+  Cross-day versions of the same job are resolved in dbt.
+- **Skills from a curated dictionary** (`jmi.skills`): deterministic and unit-tested; merged with hh `key_skills`.
+
+## Pipeline so far
+
+```
+ingest (daily) ──▶ s3://raw/{source}/dt=…/*.json ──asset──▶ load ──▶ quality gate
+                                                              ├──▶ s3://processed/{source}/dt=…/vacancies.parquet
+                                                              └──▶ ClickHouse raw.vacancies + raw.load_audit
+```

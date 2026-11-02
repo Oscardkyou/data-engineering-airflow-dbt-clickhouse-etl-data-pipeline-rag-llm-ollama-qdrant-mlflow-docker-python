@@ -33,7 +33,8 @@ def ingest():
     for name in SOURCE_NAMES:
 
         @task(task_id=f"ingest_{name}", outlets=[RAW[name]])
-        def ingest_source(source_name: str, data_interval_start=None, data_interval_end=None) -> dict:
+        def ingest_source(source_name: str, data_interval_start=None, data_interval_end=None,
+                          outlet_events=None) -> dict:
             from jmi.clients import s3_client
             from jmi.config import settings
             from jmi.sources.registry import build_source, is_enabled
@@ -47,7 +48,10 @@ def ingest():
                     f"{source_name} only has current jobs; cannot backfill {data_interval_start}")
 
             day = data_interval_start.in_timezone(TZ).date()
-            return write_partition(s3_client(), settings.s3_bucket_raw, source_name, day, source.fetch(day))
+            stats = write_partition(s3_client(), settings.s3_bucket_raw, source_name, day, source.fetch(day))
+            # The asset event tells the load DAG exactly which partition changed.
+            outlet_events[RAW[source_name]].extra = {"source": source_name, "dt": stats["dt"]}
+            return stats
 
         ingest_source(name)
 
