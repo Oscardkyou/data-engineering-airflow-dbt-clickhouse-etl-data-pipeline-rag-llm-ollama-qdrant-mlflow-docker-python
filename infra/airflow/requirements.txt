@@ -3,3 +3,4 @@ clickhouse-connect==0.8.17
 httpx==0.28.1
 pydantic==2.11.3
 pyarrow==19.0.1
+qdrant-client==1.13.3

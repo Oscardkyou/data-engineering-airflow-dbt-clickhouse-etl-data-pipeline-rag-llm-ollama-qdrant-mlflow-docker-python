@@ -73,6 +73,17 @@ All ports are bound to 127.0.0.1 only.
 - **ClickHouse gotcha caught by tests**: a SELECT alias is visible in the whole query, so
   `ifNull(country, 'Worldwide') AS country` silently changed a hash key; the `relationships` test failed on all rows.
   Dimension models qualify source columns with a table alias.
+- **Two chunking strategies indexed side by side** (`jmi.rag.chunking`): fixed word windows with overlap vs
+  the posting's own sections (headings from `<h*>` or bold-only lines, EN/RU keywords classify them as
+  requirements / responsibilities / benefits). Sections let a question about requirements filter to requirement
+  chunks; stage 7 measures which retrieves better.
+- **Contextual chunk header**: every embedded chunk starts with "title at company (seniority, location)" and its
+  section, so "5+ years of Python" is not embedded without knowing which job it belongs to.
+- **Incremental index by content hash** (`jmi.rag.index`): `doc_hash` (embedded text) and `meta_hash`
+  (filterable fields) live in the Qdrant payload. Changed text is re-embedded, changed metadata is a payload
+  update, vacancies gone from the marts are deleted. A rerun on unchanged data embeds nothing (0.1 s).
+- **Reposts collapsed at query time**: some companies post one job under several URLs (15 groups, 46 rows on the
+  first load); search returns one hit per distinct posting (`doc_hash`), not per vacancy id.
 
 ## Pipeline so far
 
@@ -83,7 +94,23 @@ ingest (daily) ──▶ s3://raw/{source}/dt=…/*.json ──asset──▶ lo
                                                                                 │ asset
                                                                                 ▼
                                           dbt_transform: source freshness ──▶ dbt build
+                                                                                │ asset
+                                                                                ▼
+                       rag_index: marts ──▶ chunk (window | sections) ──▶ bge-m3 (Ollama) ──▶ Qdrant
 ```
+
+## Vector index (Qdrant)
+
+| Collection | Chunking | Points (399 vacancies) |
+|---|---|---|
+| `vacancies_window` | 350 words, 50 overlap | 931 |
+| `vacancies_sections` | by heading, small sections merged, long ones windowed | 2015 |
+
+Payload: vacancy metadata (title, company, url, seniority, remote, salary, skills, dates), `section`,
+`section_kind`, chunk text and the two hashes. Indexed payload fields allow filtered search
+(`jmi.rag.search.search(..., seniority="senior", section_kind="requirements", min_salary_usd=8000)`).
+Sizes are in words: ~350 English words is ~470 bge-m3 tokens, far below its 8k limit, so the size is chosen for
+retrieval precision (one topic per chunk), not to avoid truncation.
 
 ## Data model (dbt, ClickHouse `analytics`)
 

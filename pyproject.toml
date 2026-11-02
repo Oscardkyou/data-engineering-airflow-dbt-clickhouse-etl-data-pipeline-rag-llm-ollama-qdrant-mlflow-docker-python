@@ -11,12 +11,15 @@ dev = [
     "pyarrow==19.0.1",
     "pydantic==2.11.3",
     "pytest==8.3.5",
+    "qdrant-client==1.13.3",
     "ruff==0.11.6",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+# Local in-memory Qdrant (used in tests) ignores payload indexes; the server does not.
+filterwarnings = ["ignore:Payload indexes have no effect:UserWarning"]
 
 [tool.ruff]
 line-length = 120
