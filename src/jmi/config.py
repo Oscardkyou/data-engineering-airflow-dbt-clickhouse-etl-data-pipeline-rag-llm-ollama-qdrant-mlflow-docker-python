@@ -12,6 +12,10 @@ def _flag(name: str, default: bool = False) -> bool:
     return _env(name, str(default)).lower() in {"1", "true", "yes"}
 
 
+def _list(name: str, default: str) -> list[str]:
+    return [item.strip() for item in _env(name, default).split(",") if item.strip()]
+
+
 @dataclass(frozen=True)
 class Settings:
     s3_endpoint_url: str = field(default_factory=lambda: _env("S3_ENDPOINT_URL", "http://s3:8333"))
@@ -30,8 +34,18 @@ class Settings:
     llm_model: str = field(default_factory=lambda: _env("LLM_MODEL", "qwen3:30b"))
     embedding_model: str = field(default_factory=lambda: _env("EMBEDDING_MODEL", "bge-m3"))
 
+    user_agent: str = field(default_factory=lambda: _env("HTTP_USER_AGENT", "job-market-insights/0.1"))
+
     hh_enabled: bool = field(default_factory=lambda: _flag("HH_ENABLED"))
-    remotive_enabled: bool = field(default_factory=lambda: _flag("REMOTIVE_ENABLED", True))
+    hh_client_id: str = field(default_factory=lambda: _env("HH_CLIENT_ID"))
+    hh_client_secret: str = field(default_factory=lambda: _env("HH_CLIENT_SECRET"))
+    hh_queries: list[str] = field(
+        default_factory=lambda: _list("HH_QUERIES", "data engineer,python,devops,machine learning"))
+
+    himalayas_enabled: bool = field(default_factory=lambda: _flag("HIMALAYAS_ENABLED", True))
+    himalayas_queries: list[str] = field(default_factory=lambda: _list(
+        "HIMALAYAS_QUERIES", "data engineer,python developer,devops engineer,machine learning engineer"))
+    himalayas_max_pages: int = field(default_factory=lambda: int(_env("HIMALAYAS_MAX_PAGES", "5")))
 
     @property
     def ollama_url(self) -> str:

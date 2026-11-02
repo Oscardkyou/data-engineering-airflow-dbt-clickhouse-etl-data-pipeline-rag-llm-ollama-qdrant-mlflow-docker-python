@@ -1,6 +1,6 @@
 # Job Market Insights
 
-Daily pipeline that collects IT job postings (hh.ru, Remotive), lands them in an S3 data lake,
+Daily pipeline that collects IT job postings (hh.ru, Himalayas), lands them in an S3 data lake,
 models them in ClickHouse with dbt, and serves a RAG assistant on top of a local LLM.
 
 > Work in progress — built stage by stage. Full write-up comes in stage 8.
@@ -16,6 +16,19 @@ models them in ClickHouse with dbt, and serves a RAG assistant on top of a local
 | Vector store | Qdrant |
 | LLM / embeddings | Ollama on host (qwen3:30b, bge-m3) |
 | Experiment tracking | MLflow (Postgres backend, artifacts in S3) |
+
+## Data sources
+
+| Source | Type | Backfill | Status |
+|---|---|---|---|
+| [hh.ru API](https://api.hh.ru) | incremental (`date_from`/`date_to`, Kazakhstan) | yes | waiting for app token (`HH_ENABLED=false`) |
+| [Himalayas](https://himalayas.app) remote jobs API | snapshot (open jobs only) | no, skipped | active |
+
+Raw responses are stored untouched in `s3://raw/{source}/dt=YYYY-MM-DD/`. Each run replaces its
+partition, so reruns and retries are idempotent.
+
+Job data from [Himalayas](https://himalayas.app) is used under its API terms: listings link back
+to Himalayas via `applicationLink` and are not redistributed to other job boards.
 
 ## Run locally
 

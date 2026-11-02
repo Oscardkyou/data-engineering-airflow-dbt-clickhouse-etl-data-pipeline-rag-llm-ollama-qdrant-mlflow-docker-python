@@ -20,7 +20,8 @@ def check_qdrant() -> str:
 
 def check_ollama() -> list[str]:
     """Return available model names; fail if the configured ones are missing."""
-    models = [m["name"] for m in httpx.get(f"{settings.ollama_url}/api/tags", timeout=10).raise_for_status().json()["models"]]
+    tags = httpx.get(f"{settings.ollama_url}/api/tags", timeout=10).raise_for_status().json()
+    models = [m["name"] for m in tags["models"]]
     missing = [
         name for name in (settings.llm_model, settings.embedding_model)
         if not any(m == name or m.startswith(f"{name}:") for m in models)

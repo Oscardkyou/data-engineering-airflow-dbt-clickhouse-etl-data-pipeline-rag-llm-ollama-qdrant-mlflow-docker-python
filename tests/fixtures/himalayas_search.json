@@ -1,0 +1,50 @@
+{
+  "updatedAt": 1793617891,
+  "offset": 0,
+  "limit": 20,
+  "totalCount": 2,
+  "jobs": [
+    {
+      "title": "Senior Data Engineer",
+      "excerpt": "Build batch and streaming pipelines.",
+      "companyName": "Example Analytics",
+      "companySlug": "example-analytics",
+      "employmentType": "Full Time",
+      "minSalary": 120000,
+      "maxSalary": 150000,
+      "salaryPeriod": "annual",
+      "currency": "USD",
+      "seniority": ["Senior"],
+      "locationRestrictions": ["Kazakhstan", "Poland"],
+      "timezoneRestrictions": [3, 4, 5],
+      "categories": ["Data-Engineer"],
+      "parentCategories": ["Data"],
+      "description": "<p>We use Airflow, dbt and Snowflake.</p><ul><li>Python</li><li>SQL</li></ul>",
+      "pubDate": 1793520000,
+      "expiryDate": 1798800000,
+      "applicationLink": "https://himalayas.app/companies/example-analytics/jobs/senior-data-engineer",
+      "guid": "https://himalayas.app/companies/example-analytics/jobs/senior-data-engineer"
+    },
+    {
+      "title": "Python Developer",
+      "excerpt": "FastAPI services.",
+      "companyName": "Remote First Co",
+      "companySlug": "remote-first-co",
+      "employmentType": "Contractor",
+      "minSalary": null,
+      "maxSalary": null,
+      "salaryPeriod": "annual",
+      "currency": null,
+      "seniority": ["Mid-level"],
+      "locationRestrictions": [],
+      "timezoneRestrictions": [],
+      "categories": ["Python-Developer"],
+      "parentCategories": ["Software Development"],
+      "description": "<p>FastAPI, PostgreSQL, Docker.</p>",
+      "pubDate": 1793430000,
+      "expiryDate": 1798700000,
+      "applicationLink": "https://himalayas.app/companies/remote-first-co/jobs/python-developer",
+      "guid": "https://himalayas.app/companies/remote-first-co/jobs/python-developer"
+    }
+  ]
+}

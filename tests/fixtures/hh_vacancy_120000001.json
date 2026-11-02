@@ -1,0 +1,15 @@
+{
+  "id": "120000001",
+  "name": "Data Engineer",
+  "area": {"id": "160", "name": "Алматы"},
+  "salary": {"from": 800000, "to": 1200000, "currency": "KZT", "gross": false},
+  "published_at": "2026-11-01T10:15:00+0500",
+  "employer": {"id": "9001", "name": "Kaspi.kz"},
+  "description": "<p><strong>Обязанности:</strong></p><ul><li>Построение ETL-пайплайнов на Airflow</li><li>Развитие DWH на ClickHouse</li></ul><p><strong>Требования:</strong></p><ul><li>SQL, Python</li><li>Опыт с dbt будет плюсом</li></ul><p><strong>Условия:</strong></p><ul><li>Удалённая работа</li></ul>",
+  "key_skills": [{"name": "Python"}, {"name": "SQL"}, {"name": "Apache Airflow"}, {"name": "ClickHouse"}],
+  "schedule": {"id": "remote", "name": "Удаленная работа"},
+  "experience": {"id": "between1And3", "name": "От 1 года до 3 лет"},
+  "employment": {"id": "full", "name": "Полная занятость"},
+  "professional_roles": [{"id": "165", "name": "Дата-сайентист"}],
+  "alternate_url": "https://hh.kz/vacancy/120000001"
+}

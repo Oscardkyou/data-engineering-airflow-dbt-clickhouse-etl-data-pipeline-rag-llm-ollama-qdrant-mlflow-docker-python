@@ -1,0 +1,15 @@
+{
+  "id": "120000002",
+  "name": "Python Backend Developer",
+  "area": {"id": "159", "name": "Астана"},
+  "salary": null,
+  "published_at": "2026-11-01T12:40:00+0500",
+  "employer": {"id": "9002", "name": "ТОО Пример"},
+  "description": "<p>Ищем Python-разработчика.</p><p><strong>Требования:</strong> FastAPI, PostgreSQL, Docker.</p>",
+  "key_skills": [{"name": "Python"}, {"name": "FastAPI"}, {"name": "PostgreSQL"}],
+  "schedule": {"id": "fullDay", "name": "Полный день"},
+  "experience": {"id": "between3And6", "name": "От 3 до 6 лет"},
+  "employment": {"id": "full", "name": "Полная занятость"},
+  "professional_roles": [{"id": "96", "name": "Программист, разработчик"}],
+  "alternate_url": "https://hh.kz/vacancy/120000002"
+}

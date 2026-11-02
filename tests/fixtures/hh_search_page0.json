@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "id": "120000001",
+      "name": "Data Engineer",
+      "area": {"id": "160", "name": "Алматы", "url": "https://api.hh.ru/areas/160"},
+      "salary": {"from": 800000, "to": 1200000, "currency": "KZT", "gross": false},
+      "published_at": "2026-11-01T10:15:00+0500",
+      "created_at": "2026-11-01T10:15:00+0500",
+      "employer": {"id": "9001", "name": "Kaspi.kz", "url": "https://api.hh.ru/employers/9001"},
+      "snippet": {"requirement": "Опыт с <highlighttext>Airflow</highlighttext> и SQL", "responsibility": "Построение ETL-пайплайнов"},
+      "schedule": {"id": "remote", "name": "Удаленная работа"},
+      "experience": {"id": "between1And3", "name": "От 1 года до 3 лет"},
+      "employment": {"id": "full", "name": "Полная занятость"},
+      "alternate_url": "https://hh.kz/vacancy/120000001"
+    },
+    {
+      "id": "120000002",
+      "name": "Python Backend Developer",
+      "area": {"id": "159", "name": "Астана", "url": "https://api.hh.ru/areas/159"},
+      "salary": null,
+      "published_at": "2026-11-01T12:40:00+0500",
+      "created_at": "2026-11-01T12:40:00+0500",
+      "employer": {"id": "9002", "name": "ТОО Пример", "url": "https://api.hh.ru/employers/9002"},
+      "snippet": {"requirement": "Python, FastAPI, PostgreSQL", "responsibility": "Разработка API"},
+      "schedule": {"id": "fullDay", "name": "Полный день"},
+      "experience": {"id": "between3And6", "name": "От 3 до 6 лет"},
+      "employment": {"id": "full", "name": "Полная занятость"},
+      "alternate_url": "https://hh.kz/vacancy/120000002"
+    }
+  ],
+  "found": 2,
+  "pages": 1,
+  "page": 0,
+  "per_page": 100
+}
