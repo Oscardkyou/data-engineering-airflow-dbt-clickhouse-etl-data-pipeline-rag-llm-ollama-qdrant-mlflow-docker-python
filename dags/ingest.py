@@ -4,6 +4,7 @@ Runs daily for the previous Almaty day. One task per source, so a failing source
 does not block the others; each task updates its own Asset to trigger loading.
 """
 
+import logging
 from datetime import datetime, timedelta
 
 import pendulum
@@ -15,6 +16,7 @@ from jmi.assets import RAW
 from jmi.sources.registry import SOURCE_NAMES
 
 TZ = pendulum.timezone("Asia/Almaty")
+log = logging.getLogger(__name__)
 
 # A snapshot source run older than this is a backfill/catch-up, not "today".
 SNAPSHOT_MAX_LAG = timedelta(hours=36)
@@ -81,9 +83,17 @@ def ingest():
 
         day, is_backfill = target_day(data_interval_start, data_interval_end)
         with httpx.Client(headers={"User-Agent": settings.user_agent}, timeout=30) as client:
-            frankfurter = currency.fetch_frankfurter(client, day)
+            frankfurter = hh = None
+            try:
+                frankfurter = currency.fetch_frankfurter(client, day)
+            except httpx.HTTPError as exc:
+                # One provider being down must not drop the other: hh still covers USD, EUR and KZT.
+                log.warning("Frankfurter unavailable for %s: %s", day, exc)
             # hh only has today's rates: skip it on backfills, like snapshot job sources.
-            hh = None if is_backfill else currency.fetch_hh(client)
+            if not is_backfill:
+                hh = currency.fetch_hh(client)
+        if frankfurter is None and hh is None:
+            raise RuntimeError(f"no currency provider available for {day}")
 
         s3 = s3_client()
         for provider, body in (("frankfurter", frankfurter), ("hh", hh)):
@@ -92,7 +102,7 @@ def ingest():
                               Body=json.dumps(body, ensure_ascii=False).encode("utf-8"))
         rows = currency.to_rows(day, frankfurter, hh)
         warehouse.replace_currency_rates(clickhouse_client(), day, rows)
-        return {"dt": day.isoformat(), "rates": len(rows), "hh": hh is not None}
+        return {"dt": day.isoformat(), "rates": len(rows), "frankfurter": frankfurter is not None, "hh": hh is not None}
 
     ingest_currency_rates()
 
