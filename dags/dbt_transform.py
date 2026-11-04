@@ -10,7 +10,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sdk import dag
 
 from jmi.alerts import on_task_failure
-from jmi.assets import MARTS, WAREHOUSE_VACANCIES
+from jmi.assets import CURRENCY_RATES, MARTS, WAREHOUSE_VACANCIES
 
 DBT = "/home/airflow/dbt-venv/bin/dbt"
 DBT_ENV = {
@@ -23,7 +23,8 @@ DBT_ENV = {
 
 
 @dag(
-    schedule=[WAREHOUSE_VACANCIES],
+    # Either input changing rebuilds the marts: new vacancies, or rates that arrived late.
+    schedule=WAREHOUSE_VACANCIES | CURRENCY_RATES,
     start_date=datetime(2026, 11, 1),
     catchup=False,
     max_active_runs=1,

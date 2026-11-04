@@ -12,7 +12,7 @@ from airflow.exceptions import AirflowSkipException
 from airflow.sdk import dag, task
 from airflow.timetables.interval import CronDataIntervalTimetable
 
-from jmi.assets import RAW
+from jmi.assets import CURRENCY_RATES, RAW
 from jmi.sources.registry import SOURCE_NAMES
 
 TZ = pendulum.timezone("Asia/Almaty")
@@ -69,7 +69,8 @@ def ingest():
 
         ingest_source(name)
 
-    @task
+    # Rates can land after the vacancies (provider outage, retries): dbt listens to this asset too.
+    @task(outlets=[CURRENCY_RATES])
     def ingest_currency_rates(data_interval_start=None, data_interval_end=None) -> dict:
         """Reference data: small enough to land in S3 and ClickHouse in one step."""
         import json

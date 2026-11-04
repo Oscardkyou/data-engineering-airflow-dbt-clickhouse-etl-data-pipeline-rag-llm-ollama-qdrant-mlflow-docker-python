@@ -6,5 +6,6 @@ from jmi.sources.registry import SOURCE_NAMES
 
 RAW = {name: Asset(f"s3://raw/{name}") for name in SOURCE_NAMES}
 WAREHOUSE_VACANCIES = Asset("clickhouse://raw/vacancies")
+CURRENCY_RATES = Asset("clickhouse://raw/currency_rates")
 MARTS = Asset("clickhouse://analytics/fct_vacancy")
 VECTOR_INDEX = Asset("qdrant://vacancies")
